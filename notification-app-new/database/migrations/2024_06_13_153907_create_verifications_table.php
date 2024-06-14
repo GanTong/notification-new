@@ -20,7 +20,6 @@ class CreateVerificationsTable extends Migration
             $table->string('code')->nullable();
             $table->tinyInteger('status')->default(0);
             $table->dateTime('confirm_at')->useCurrent();
-            $table->string('ip')->nullable();
             $table->timestamps();
         });
     }

@@ -7,34 +7,54 @@ use http\Exception\InvalidArgumentException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class VerificationController extends Controller
 {
-    /**
-     * @var VerificationService
-     */
-    protected $verificationService;
-
-    public function __constructor(VerificationService $verificationService)
-    {
-        $this->verificationService = $verificationService;
-    }
 
     /**
      * @param Request $request
+     * @param VerificationService $verificationService
      * @return JsonResponse
+     * @throws ValidationException
      */
-    public function getConfirmationCode(Request $request)
+    public function getConfirmationCode(Request $request, VerificationService $verificationService): JsonResponse
     {
+        $validator = Validator::make($request->all(), [
+            'channel' => 'required',
+            'provider' => 'required',
+            'destination' => 'required'
+        ]);
+
+        if ($validator->fails()) {
+           $status = 500;
+           $error = $validator->errors();
+           $message = 'validation failed';
+
+            $result = [
+                'status' => $status,
+                'error' => $error,
+                'message' => $message
+            ];
+
+           return response()->json($result, $result['status']);
+        }
+
         try {
-            $data = $this->validateRequest($request, false);
-            $this->verificationService->sendVerificationCode($data['destination'], $data['channel'], $data['provider']);
+
+            $verificationService->sendVerificationCode(
+                $request->input('destination'),
+                $request->input('channel'),
+                $request->input('provider')
+            );
 
             $result = [
                 'status' => 200,
+                'error' => '',
                 'message' => 'successfully sent out code'
             ];
-        } catch (\Exception $e) {
+
+        } catch (InvalidArgumentException $e) {
             $result = [
                 'status' => 500,
                 'message' => 'send code action failed',
@@ -47,19 +67,46 @@ class VerificationController extends Controller
 
     /**
      * @param Request $request
+     * @param VerificationService $verificationService
      * @return JsonResponse
      */
-    public function confirmCode(Request $request)
+    public function confirmCode(Request $request, VerificationService $verificationService): JsonResponse
     {
+        $validator = Validator::make($request->all(), [
+            'channel' => 'required',
+            'provider' => 'required',
+            'destination' => 'required',
+            'code' => 'required|max:4'
+        ]);
+
+        if ($validator->fails()) {
+            $status = 500;
+            $error = $validator->errors();
+            $message = 'validation failed';
+
+            $result = [
+                'status' => $status,
+                'error' => $error,
+                'message' => $message
+            ];
+
+            return response()->json($result, $result['status']);
+        }
+
         try {
-            $data = $this->validateRequest($request, true);
-            $this->verificationService->confirmCode($request['code'], $data['destination'], $data['provider'], $data['channel']);
+            $verificationService->confirmCode(
+                $request->input('code'),
+                $request->input('destination'),
+                $request->input('provider'),
+                $request->input('channel')
+            );
 
             $result = [
                 'status' => 200,
+                'error' => '',
                 'message' => 'successfully confirmed code'
             ];
-        } catch (\Exception $e) {
+        } catch (ValidationException $e) {
             $result = [
                 'status' => 500,
                 'message' => 'confirmed code action failed',
@@ -72,16 +119,43 @@ class VerificationController extends Controller
 
     /**
      * @param Request $request
+     * @param VerificationService $verificationService
      * @return JsonResponse
      */
-    public function isCodeVerified(Request $request)
+    public function isCodeVerified(Request $request, VerificationService $verificationService)
     {
+        $validator = Validator::make($request->all(), [
+            'channel' => 'required',
+            'provider' => 'required',
+            'destination' => 'required',
+            'code' => 'required|max:4'
+        ]);
+
+        if ($validator->fails()) {
+            $status = 500;
+            $error = $validator->errors();
+            $message = 'validation failed';
+
+            $result = [
+                'status' => $status,
+                'error' => $error,
+                'message' => $message
+            ];
+
+            return response()->json($result, $result['status']);
+        }
+
         try {
-            $data = $this->validateRequest($request, true);
-            $verified = $this->verificationService->isCodeVerified($request['code'], $data['destination'], $data['provider'], $data['channel']);
+            $verified = $verificationService->isCodeVerified(
+                $request->input('code'),
+                $request->input('destination'),
+                $request->input('provider'),
+                $request->input('channel')
+            );
 
             $result = [
                 'status' => $verified ? 200 : 404,
+                'error' => '',
                 'message' => $verified ? 'successfully verified code' : 'code verification failed'
             ];
         } catch (\Exception $e) {
@@ -93,47 +167,5 @@ class VerificationController extends Controller
         }
 
         return response()->json($result, $result['status']);
-    }
-
-    /**
-     * @param Request $request
-     * @param bool $codeApplies
-     * @return array
-     */
-    public function validateRequest(Request $request, bool $codeApplies): array
-    {
-        if ($codeApplies) {
-            $validator = Validator::make($request->all(), [
-                'destination' => 'required',
-                'channel' => 'required',
-                'provider' => 'required',
-                'code' => 'required'
-            ]);
-        } else {
-            $validator = Validator::make($request->all(), [
-                'destination' => 'required',
-                'channel' => 'required',
-                'provider' => 'required'
-            ]);
-        }
-
-        if ($validator->fails()) {
-            throw new InvalidArgumentException($validator->errors()->first());
-        }
-
-        if ($codeApplies) {
-            return [
-                'destination'  => $request->input('destination'),
-                'channel' => $request->input('channel'),
-                'provider' => $request->input('provider'),
-                'code' => $request->input('code')
-            ];
-        } else {
-            return [
-                'destination'  => $request->input('destination'),
-                'channel' => $request->input('channel'),
-                'provider' => $request->input('provider'),
-            ];
-        }
     }
 }

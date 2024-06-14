@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\TestController;
+use App\Http\Controllers\VerificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,6 +18,7 @@ Route::get('/', function () {
     //return view('welcome');
 });
 
-Route::get('getConfirmationCode', 'VerificationController@getConfirmationCode');
-Route::get('confirmCode', 'VerificationController@confirmCode');
-Route::get('isCodeVerified', 'VerificationController@isCodeVerified');
+Route::get('/getConfirmationCode', [VerificationController::class, 'getConfirmationCode']);
+Route::get('/confirmCode', [VerificationController::class, 'confirmCode']);
+Route::get('/isCodeVerified', [VerificationController::class, 'isCodeVerified']);
+Route::get('/test', [VerificationController::class, 'test2']);

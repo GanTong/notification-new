@@ -4,14 +4,14 @@ namespace App\Models\Providers;
 
 use App\Interfaces\VerificationInterface;
 use App\Libraries\RatelimiterLaravel;
+use App\Mail\VerifyCodeEmail;
+use App\Models\Verification;
 use App\Repositories\VerificationRepository;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
-use Twilio\Exceptions\ConfigurationException;
-use Twilio\Exceptions\TwilioException;
-use Twilio\Rest\Client;
 
-class Twilio extends Model implements VerificationInterface
+class Local extends Model implements VerificationInterface
 {
     const RATE_LIMITER_HIT = 100;
     const RATE_LIMITER_INTERVAL = 'hour';
@@ -21,14 +21,11 @@ class Twilio extends Model implements VerificationInterface
      */
     public function getAvailableChannels(): array
     {
-        return ['sms', 'whatsapp'];
+        return ['email'];
     }
 
     /**
-     * @param string $channel
-     * @param string $destination
-     * @return void
-     * @throws ConfigurationException|TwilioException
+     * @throws ValidationException
      */
     public function sendCode(string $channel, string $destination): void
     {
@@ -39,27 +36,22 @@ class Twilio extends Model implements VerificationInterface
         $code = $verificationRepository->createCode();
 
         /*
-         * Option to bypass twilio php sdk with cookie
-         */
-        if (!isset($_COOKIE['bypass_twilio_php'])) {
-            $twilio = new Client($this->getAccountSID(), $this->getAuthToken());
-            $twilio->messages
-                ->create($destination,
-                         array(
-                             "from" => $this->getFromNumber(),
-                             "body" => 'your code:' . $code
-                         )
-                );
-        }
-
-        /*
          * Store code to DB
          */
-        $verificationRepository->storeCode($channel, $destination, $code);
+        $verification = $verificationRepository->storeCode($channel, $destination, $code);
+
+        /*
+         * Send code
+         */
+        $this->deliverCode($channel, $destination, $verification);
 
     }
 
     /**
+     * @param string $code
+     * @param string $channel
+     * @param string $destination
+     * @return void
      * @throws ValidationException
      */
     public function verifyCode(string $code, string $channel, string $destination): void
@@ -110,17 +102,19 @@ class Twilio extends Model implements VerificationInterface
      */
     public function getRatelimiterMessage(string $interval): string
     {
-        return 'you have reached the rate limit, please try again in one '. $interval;
+        return 'you have reached the rate limit, please try again in one ' . $interval;
     }
 
-    /**
+        /**
+     * @param string $channel
+     * @param string $destination
+     * @return void
      * @throws ValidationException
      */
     public function throttleDelivery(string $channel, string $destination): void
     {
         switch ($channel) {
-            case 'sms':
-            case 'whatsapp':
+            case 'email':
                 $ratelimiter = new RatelimiterLaravel();
                 $ratelimiter->throttle(
                     self::RATE_LIMITER_HIT,
@@ -134,35 +128,21 @@ class Twilio extends Model implements VerificationInterface
     }
 
     /**
-     * @return string
+     * @param string $channel
+     * @param string $destination
+     * @param Verification $verification
+     * @return void
+     * @throws ValidationException
      */
-    private function getAccountSID(): string
+    public function deliverCode(string $channel, string $destination, Verification $verification)
     {
-        return (string)env('TWILIO_ACCOUNT_SID');
-    }
+        switch ($channel) {
+            case 'email':
+                Mail::to($destination)->send(new VerifyCodeEmail($verification));
+                break;
+            default:
+                throw ValidationException::withMessages(['exception' => "Unhandled sending channel for ".$channel]);
+        }
 
-    /**
-     * @return string
-     */
-    private function getAuthToken(): string
-    {
-        return (string)env('TWILIO_AUTH_TOKEN');
     }
-
-    /**
-     * @return string
-     */
-    private function getServiceSID(): string
-    {
-        return (string)env('TWILIO_SERVICE_SID');
-    }
-
-    /**
-     * @return string
-     */
-    private function getFromNumber(): string
-    {
-        return (string)env('TWILIO_FROM_NUMBER');
-    }
-
 }
