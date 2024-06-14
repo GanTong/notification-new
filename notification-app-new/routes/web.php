@@ -15,10 +15,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    //return view('welcome');
+    return view('welcome');
 });
 
 Route::get('/getConfirmationCode', [VerificationController::class, 'getConfirmationCode']);
 Route::get('/confirmCode', [VerificationController::class, 'confirmCode']);
 Route::get('/isCodeVerified', [VerificationController::class, 'isCodeVerified']);
-Route::get('/test', [VerificationController::class, 'test2']);
