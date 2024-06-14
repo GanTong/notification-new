@@ -1,64 +1,49 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+# Notification / Messaging Services
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Project Scope
+- Use different communication providers to provide an abstraction service for sending notifications to customers. 
+- Ideally to have different service providers in case one of the services goes down
+- Able to disable and switch to different providers and channels
+- Throttling to limit the amount of notifications sent to users within an interval
+- Tracking of notifications sent
+## How to run 
+1. Clone this repository 
+`git clone https://github.com/GanTong/notification-new.git`
+2. navigate into the project directory 
+`cd notification-app-new`
+3. You must make sure that Docker is already installed on your system
+4. Create `.env` file
+5. `DB_CONNECTION=mysql`
+    `DB_HOST=mysql`
+    `DB_PORT=3306`
+Since the Docker container uses MySQL database and phpmyadmin (port 8004), you can also configure other database services 
+6. In the terminal run `docker-compose up -d --build` to start up the docker container
+7. Access http://localhost:8000 to see a Laravel welcome page
+8. Generate key for Laravel application `docker-composer exec app php artisan key:generate`
+9. Run migration `docker-compose exec app php artisan migrate`
+10. Access DB PhpMyAdmin: http://localhost:8004
+11. Access Mailhog panel http://localhost:8025 for email testing
 
-## About Laravel
+# Project Breakdown
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Twilio
+- This project is built with docker compose so that it can run out of the box without having to install dependencies separately. Twilio is integrated into this project with both `SMS` and `WhatsApp` channel options. To use it please install `Twilio-php SDK` via composer by running `docker-compose exec app composer require twilio/sdk`
+- We must also register with Twilio for a free trial account, and obtain a verified caller number for the API call. 
+- To fill in these credentials under the `.env` file for `TWILIO_ACCOUNT_SID=`
+  `TWILIO_AUTH_TOKEN=`
+  `TWILIO_FROM_NUMBER=`  
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Throttling
+You can find the custom-built rate limiter class under `app\libraries\RatelimiterLaravel`. It offers the option to throttle based on the max hit, interval (e.g. set valid for one hour), and error message parameters. This class is not limited to be used as a route-binding middleware, it can also be used anywhere in your code. A better version would be to build it totally from scratch using Redis, although, in my opinion, it would be overkill for this task since the RatelimiterLaravel class can satisfy almost all the needs. The Redis version can do a bit more with the ability to store (with an expiry date option) values for better identifying the user's identity such as user agent, IP address, etc. as Redis key.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Endpoints 
+1. To send OTP http://localhost:8000/getConfirmationCode?channel={email/sms/whatsapp}&provider={Twilio/Local}&destination={*numberOremail}
+2. To verify OTP http://localhost:8000/confirmCode?channel={email/sms/whatsapp}&provider={Twilio/Local}&destination={*numberOremail}&code={*code}
+3. To check if code is already verified http://localhost:8000/isCodeVerified?channel={email/sms/whatsapp}&provider={Twilio/Local}&destination={*numberOremail}&code={*code} 
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Things that got left out due to time constraints
+- Writing test cases with PHPUnit
+- Unable to integrate more providers. I have only managed to set up Twilio which offers free SMS and WhatsApp verification services. Although other providers are free to sign up, for example, Telesign, it seems the trial account credentials did not work for me. I ended up building a second failover provider service named `Local` that offers a custom-built email verification service. 
+- Error Logger 
+- Utilising Redis for storing and configuring configuration data
+- Delay and resend notifications if all providers fail
