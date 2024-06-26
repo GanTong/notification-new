@@ -75,3 +75,4 @@ notification-app-new/resources/views/mail/verify-code.blade.php
 notification-app-new/database/migrations/2024_06_13_153907_create_verifications_table.php
 
 notification-app-new/docker-compose.yml
+
